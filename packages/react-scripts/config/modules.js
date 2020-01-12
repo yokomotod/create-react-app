@@ -34,6 +34,9 @@ function getAdditionalModulePaths(options = {}) {
   }
 
   const baseUrlResolved = path.resolve(paths.appPath, baseUrl);
+  const pathsResolved = Object.values(options.paths).map(([v]) =>
+    path.resolve(paths.appPath, v.replace('*', ''))
+  );
 
   // We don't need to do anything if `baseUrl` is set to `node_modules`. This is
   // the default behavior.
@@ -52,7 +55,7 @@ function getAdditionalModulePaths(options = {}) {
   // absolute path (e.g. `src/Components/Button.js`) but we set that up with
   // an alias.
   if (path.relative(paths.appPath, baseUrlResolved) === '') {
-    return null;
+    return pathsResolved;
   }
 
   // Otherwise, throw an error.
@@ -79,11 +82,19 @@ function getWebpackAliases(options = {}) {
   const baseUrlResolved = path.resolve(paths.appPath, baseUrl);
 
   if (path.relative(paths.appPath, baseUrlResolved) === '') {
-    return {
-      src: paths.appSrc,
-    };
+    return Object.entries(options.paths).reduce(
+      (aliases, [k, [v]]) => ({
+        ...aliases,
+        [k.replace('/*', '')]: path.resolve(paths.appPath, v.replace('*', '')),
+      }),
+      {
+        src: paths.appSrc,
+      }
+    );
   }
 }
+
+const escapeRegex = str => str.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&');
 
 /**
  * Get jest aliases based on the baseUrl of a compilerOptions object.
@@ -100,9 +111,18 @@ function getJestAliases(options = {}) {
   const baseUrlResolved = path.resolve(paths.appPath, baseUrl);
 
   if (path.relative(paths.appPath, baseUrlResolved) === '') {
-    return {
-      '^src/(.*)$': '<rootDir>/src/$1',
-    };
+    return Object.entries(options.paths).reduce(
+      (aliases, [k, [v]]) => ({
+        ...aliases,
+        [`^${escapeRegex(k.replace('/*', ''))}/(.*)$`]: path.resolve(
+          paths.appPath,
+          v.replace('*', '$1')
+        ),
+      }),
+      {
+        '^src/(.*)$': '<rootDir>/src/$1',
+      }
+    );
   }
 }
 
